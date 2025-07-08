@@ -502,6 +502,8 @@
             transform: translateY(-2px);
         }
 
+        /* Music Control Button - REMOVED */
+
         @keyframes fadeIn {
             from { opacity: 0; }
             to { opacity: 1; }
@@ -543,6 +545,12 @@
     </style>
 </head>
 <body>
+    <!-- Background Music -->
+    <audio id="backgroundMusic" loop autoplay>
+        <source src="munnapyara.mp3" type="audio/mpeg">
+        Your browser does not support the audio element.
+    </audio>
+
     <!-- Header -->
     <header class="header">
         <nav class="nav">
@@ -751,12 +759,33 @@
         </div>
     </div>
 
+    <!-- Music Control Button - REMOVED -->
+
     <!-- Preview Button -->
     <button class="preview-btn" onclick="togglePreview()">Preview Website</button>
 
     <script>
         let isPreviewMode = false;
         const overlay = document.getElementById('comingSoonOverlay');
+        const backgroundMusic = document.getElementById('backgroundMusic');
+
+        // Initialize music
+        function initMusic() {
+            backgroundMusic.volume = 0.9; // Set volume to 30%
+            
+            // Force music to play
+            const playPromise = backgroundMusic.play();
+            
+            if (playPromise !== undefined) {
+                playPromise.catch(error => {
+                    // If autoplay is blocked, try again on first user interaction
+                    console.log('Autoplay prevented, will try on user interaction:', error);
+                    document.addEventListener('click', function() {
+                        backgroundMusic.play().catch(e => console.log('Failed to play music:', e));
+                    }, { once: true });
+                });
+            }
+        }
 
         function togglePreview() {
             isPreviewMode = !isPreviewMode;
@@ -825,6 +854,24 @@
                 }
             });
         });
+
+        // Initialize music when page loads
+        document.addEventListener('DOMContentLoaded', initMusic);
+
+        // Ensure music keeps playing - restart if it ends unexpectedly
+        backgroundMusic.addEventListener('ended', function() {
+            backgroundMusic.currentTime = 0;
+            backgroundMusic.play();
+        });
+
+        // Handle user interaction for autoplay (backup method)
+        document.addEventListener('click', function() {
+            if (backgroundMusic.paused) {
+                backgroundMusic.play().catch(error => {
+                    console.log('Failed to play music:', error);
+                });
+            }
+        }, { once: true });
     </script>
 </body>
 </html>
