@@ -10,7 +10,7 @@ const Footer = () => {
           <div className="footer-brand">
             <div className="logo-section">
               <span className="footer-logo-icon">🩺</span>
-              <span className="footer-logo-text">Medicare</span>
+              <span className="footer-logo-text">Medoraa</span>
             </div>
             <p className="footer-description">
               We provide all aspects of medical practice for your whole family, including
@@ -69,7 +69,7 @@ const Footer = () => {
         </div>
 
         <div className="footer-bottom">
-          <p>© Medicare International Hospital Ltd. 2025</p>
+          <p>Medoraa</p>
           <a href="#">Privacy Policy</a>
         </div>
       </div>
