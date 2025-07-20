@@ -7,8 +7,6 @@ import {
   useLocation,
   useNavigate,
 } from "react-router-dom";
-import { signOut } from "firebase/auth";
-import { auth } from "./firebase";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 
 // Page Components
@@ -94,13 +92,8 @@ const AuthAndRouteHandler = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    if (!loadingAuth && currentUser && location.pathname === "/") {
-      signOut(auth).catch((error) =>
-        console.error("Error logging out on landing page:", error)
-      );
-    }
-  }, [location.pathname, currentUser, loadingAuth, navigate]);
+  // REMOVED THE PROBLEMATIC AUTO-LOGOUT CODE
+  // The useEffect that was automatically logging out users on landing page has been removed
 
   return (
     <>
