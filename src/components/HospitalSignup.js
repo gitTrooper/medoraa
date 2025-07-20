@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import { auth, db } from "../firebase";
 import { 
   createUserWithEmailAndPassword, 
-  sendEmailVerification
+  sendEmailVerification,
+  signOut  // Add this import
 } from "firebase/auth"; 
 import { doc, setDoc, collection, GeoPoint, getDoc } from "firebase/firestore";
 import { useNavigate, Link } from "react-router-dom";
@@ -558,6 +559,11 @@ const HospitalSignupPage = () => {
       // Send email verification
       await sendEmailVerification(user);
 
+      // IMPORTANT: Sign out the user immediately after account creation
+      // This prevents auto-login before admin approval and email verification
+      await signOut(auth);
+      console.log("User signed out after hospital registration");
+
       // Handle hospital images upload
       let hospitalImagesMeta = [];
       if (selectedImages.length > 0) {
@@ -597,7 +603,8 @@ const HospitalSignupPage = () => {
 
       setSuccess(`Your hospital registration request has been submitted for admin approval. 
 Request ID: ${requestId}. 
-You will receive an email notification once your request is reviewed.`);
+You will receive an email notification once your request is reviewed.
+Please verify your email address and wait for admin approval before attempting to login.`);
 
       // Reset form
       setFormData({
@@ -621,7 +628,10 @@ You will receive an email notification once your request is reviewed.`);
 
       localStorage.setItem(`signup_request_hospital`, requestId);
 
-       navigate('/');
+      // Navigate to home after a short delay to allow user to read the success message
+      setTimeout(() => {
+        navigate('/');
+      }, 3000);
 
     } catch (error) {
       console.error('Hospital signup error:', error);
