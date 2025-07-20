@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import { auth, db } from "../firebase";
 import { 
   createUserWithEmailAndPassword, 
-  sendEmailVerification
+  sendEmailVerification,
+  signOut  // Add this import
 } from "firebase/auth"; 
 import { doc, setDoc } from "firebase/firestore";
 import { useNavigate, Link } from "react-router-dom";
@@ -210,6 +211,7 @@ const DoctorSignup = () => {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
+      // Send email verification
       await sendEmailVerification(user);
 
       let profileImageMeta = null;
@@ -235,10 +237,24 @@ const DoctorSignup = () => {
 
       const requestId = await sendToAdminForApproval(userData, profileImageMeta);
 
-      setSuccess(`Your doctor registration request has been submitted for admin approval. 
-Request ID: ${requestId}. 
-You will receive an email notification once your request is reviewed.`);
+      // IMPORTANT: Sign out the user immediately after registration
+      await signOut(auth);
+      console.log("User signed out after registration");
 
+      setSuccess(`Your doctor registration request has been submitted successfully!
+
+Registration Details:
+• Request ID: ${requestId}
+• Email verification sent to: ${email}
+
+Next Steps:
+1. Check your email and verify your email address
+2. Wait for admin approval (you'll receive an email notification)
+3. Once both email verification and admin approval are complete, you can log in
+
+Please save your Request ID for tracking purposes.`);
+
+      // Reset form
       setFormData({
         firstName: "",
         lastName: "",
@@ -257,13 +273,34 @@ You will receive an email notification once your request is reviewed.`);
       setSelectedImage(null);
       setImagePreview(null);
 
+      // Store request ID for tracking
       localStorage.setItem(`signup_request_doctor`, requestId);
 
-       navigate('/');
+      // Optional: Navigate to a different page after a delay
+      setTimeout(() => {
+        navigate('/login', { 
+          state: { 
+            message: 'Registration submitted! Please verify your email and wait for admin approval before logging in.',
+            type: 'info'
+          }
+        });
+      }, 5000);
 
     } catch (error) {
       console.error('Doctor signup error:', error);
-      setError(error.message || 'Registration failed. Please try again.');
+      
+      // Handle specific Firebase auth errors
+      let errorMessage = 'Registration failed. Please try again.';
+      
+      if (error.code === 'auth/email-already-in-use') {
+        errorMessage = 'An account with this email already exists. Please use a different email or try logging in.';
+      } else if (error.code === 'auth/weak-password') {
+        errorMessage = 'Password is too weak. Please use a stronger password.';
+      } else if (error.code === 'auth/invalid-email') {
+        errorMessage = 'Please enter a valid email address.';
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -276,14 +313,22 @@ You will receive an email notification once your request is reviewed.`);
         <div className="signup-header">
           <h2>Doctor Registration</h2>
           <p className="signup-subtitle">
-            Join our medical platform. All registrations require admin approval for quality assurance.
+            Join our medical platform. All registrations require email verification and admin approval.
           </p>
         </div>
 
         {/* Form */}
         <div className="signup-form-container">
           {error && <Alert variant="danger">{error}</Alert>}
-          {success && <Alert variant="success">{success}</Alert>}
+          {success && (
+            <Alert variant="success">
+              <div style={{ whiteSpace: 'pre-line' }}>{success}</div>
+              <hr />
+              <p className="mb-0">
+                <small>You will be redirected to the login page in a few seconds...</small>
+              </p>
+            </Alert>
+          )}
           
           <Form onSubmit={handleSubmit}>
             {/* Name Fields */}
@@ -482,7 +527,7 @@ You will receive an email notification once your request is reviewed.`);
               className="btn-submit"
               disabled={loading}
             >
-              {loading ? "Submitting for Approval..." : "Submit Registration"}
+              {loading ? "Submitting Registration..." : "Submit Registration"}
             </Button>
           </Form>
         </div>
