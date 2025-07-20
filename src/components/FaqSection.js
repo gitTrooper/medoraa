@@ -9,7 +9,7 @@ const faqs = [
       "To make an appointment, simply contact our office by phone or use our online scheduling system. Choose your preferred date and time, and we'll confirm your appointment promptly.",
   },
   {
-    question: "Are Consultants available 24 hours at Medicare Hospital?",
+    question: "Are Consultants available 24 hours at Medoraa?",
     answer:
       "Our consultants are available during scheduled hours. However, emergency services are available 24/7.",
   },
@@ -19,7 +19,7 @@ const faqs = [
       "Yes, we offer weekend appointments. Availability may vary depending on the consultant.",
   },
   {
-    question: "Does Medicare Hospital Provide Emergency Services?",
+    question: "Does Medoraa Provide Emergency Services?",
     answer:
       "Yes, we offer 24/7 emergency services with on-call medical professionals available at all times.",
   },
