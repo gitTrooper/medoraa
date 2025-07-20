@@ -108,16 +108,6 @@ const HealthCategories = () => {
             </div>
           ))}
         </div>
-        
-        <div className="text-center">
-          {/* <Button 
-            variant="outline-primary" 
-            className="view-all-btn"
-            onClick={handleViewAllClick}
-          >
-            View All Specialties
-          </Button> */}
-        </div>
       </Container>
     </div>
   );
