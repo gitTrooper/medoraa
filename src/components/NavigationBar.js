@@ -1,6 +1,6 @@
 // src/components/NavigationBar.js
 import React, { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { auth } from "../firebase";
 import { signOut } from "firebase/auth";
 import { useAuth } from '../contexts/AuthContext';
@@ -12,6 +12,7 @@ const NavigationBar = () => {
   const [logoLoaded, setLogoLoaded] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -44,6 +45,8 @@ const NavigationBar = () => {
       console.log("Explicit logout from Navbar successful.");
       setDropdownOpen(false);
       setMobileMenuOpen(false);
+      // Clear any stored redirect paths
+      sessionStorage.removeItem('redirectAfterLogin');
       navigate('/');
     } catch (error) {
       console.error("Error during logout:", error);
@@ -65,9 +68,14 @@ const NavigationBar = () => {
     handleLinkClick(); // Close mobile menu and dropdown
     
     if (!currentUser) {
-      // Store the intended destination in sessionStorage
-      sessionStorage.setItem('redirectAfterLogin', path);
-      navigate('/login');
+      // Store the intended destination (but check if user is truly not authenticated)
+      if (!loadingAuth) {
+        sessionStorage.setItem('redirectAfterLogin', path);
+        navigate('/login', { 
+          state: { from: location.pathname },
+          replace: false 
+        });
+      }
     } else {
       navigate(path);
     }
@@ -151,40 +159,40 @@ const NavigationBar = () => {
               <Link className="nav-link" to="/aboutus" onClick={handleLinkClick}>About Us</Link>
             </li>
             <li className="nav-item">
-              <a 
+              <Link 
                 className="nav-link" 
-                href="/chatbot" 
+                to="/chatbot" 
                 onClick={(e) => handleProtectedLinkClick(e, '/chatbot')}
               >
                 AI Chatbot
-              </a>
+              </Link>
             </li>
             <li className="nav-item">
-              <a 
+              <Link 
                 className="nav-link" 
-                href="/report-analysis" 
+                to="/report-analysis" 
                 onClick={(e) => handleProtectedLinkClick(e, '/report-analysis')}
               >
                 Report Analysis
-              </a>
+              </Link>
             </li>
             <li className="nav-item">
-              <a 
+              <Link 
                 className="nav-link" 
-                href="/hospital-locator" 
+                to="/hospital-locator" 
                 onClick={(e) => handleProtectedLinkClick(e, '/hospital-locator')}
               >
                 Hospital Locator
-              </a>
+              </Link>
             </li>
             <li className="nav-item">
-              <a 
+              <Link 
                 className="nav-link" 
-                href="/services" 
-                onClick={(e) => handleProtectedLinkClick(e, '/services')}
+                to="/diet-plan" 
+                onClick={(e) => handleProtectedLinkClick(e, '/diet-plan')}
               >
                 Diet Plan Generator
-              </a>
+              </Link>
             </li>
           </ul>
 
@@ -196,9 +204,8 @@ const NavigationBar = () => {
                   Get Started
                 </Link>
                 <Link to="/admin-login" className="sign-up-btn" onClick={handleLinkClick}>
-                      Administrator
+                  Administrator
                 </Link>
-
               </>
             ) : (
               <div className="user-dropdown">
