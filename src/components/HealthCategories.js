@@ -65,7 +65,7 @@ const HealthCategories = () => {
 
   const handleConsultClick = (specialization) => {
     if (currentUser) {
-      navigate(`/specialists/${encodeURIComponent(specialization)}`);
+      navigate(/specialists/${encodeURIComponent(specialization)});
     } else {
       alert("Please log in to consult a doctor.");
       navigate("/login");
@@ -110,13 +110,13 @@ const HealthCategories = () => {
         </div>
         
         <div className="text-center">
-          <Button 
+          {/* <Button 
             variant="outline-primary" 
             className="view-all-btn"
             onClick={handleViewAllClick}
           >
             View All Specialties
-          </Button>
+          </Button> */}
         </div>
       </Container>
     </div>
