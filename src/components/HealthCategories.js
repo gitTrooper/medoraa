@@ -11,37 +11,37 @@ const healthCategories = [
     title: "Cardiology",
     image: "/images/cardiologist.png",
     specialization: "Cardiologist",
-    description: "Tortor posuere ac ut consequat semper viverra nam. Orci ac auctor augue mauris augue neque gravida in."
+    description: "Expert cardiac care tailored for every heartbeat — from prevention to advanced treatment."
   },
   {
     title: "Neurology",
     image: "/images/neurologist.png",
     specialization: "Neurologist",
-    description: "Tortor posuere ac ut consequat semper viverra nam. Orci ac auctor augue mauris augue neque gravida in."
+    description: "Comprehensive neurological care for brain, spine, and nerve health — all under one roof."
   },
   {
     title: "Radiology",
     image: "/images/radiology.jpeg",
     specialization: "Radiologist",
-    description: "Tortor posuere ac ut consequat semper viverra nam. Orci ac auctor augue mauris augue neque gravida in."
+    description: "Precision imaging powered by advanced technology for accurate diagnosis and care."
   },
   {
     title: "Pulmonary",
     image: "/images/pulmonary.png",
     specialization: "Pulmonologist",
-    description: "Tortor posuere ac ut consequat semper viverra nam. Orci ac auctor augue mauris augue neque gravida in."
+    description: "Expert pulmonary services diagnosing and treating all respiratory conditions with care."
   },
   {
     title: "Dermatology",
     image: "/images/dermatologist.jpeg",
     specialization: "Dermatologist",
-    description: "Tortor posuere ac ut consequat semper viverra nam. Orci ac auctor augue mauris augue neque gravida in."
+    description: "Expert dermatology for all your skin, hair, and nail concerns."
   },
   {
     title: "Pediatrics",
     image: "/images/child.png",
     specialization: "Pediatrician",
-    description: "Tortor posuere ac ut consequat semper viverra nam. Orci ac auctor augue mauris augue neque gravida in."
+    description: "Compassionate pediatric care for your child’s healthy growth and development."
   }
 ];
 
