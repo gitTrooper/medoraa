@@ -12,7 +12,6 @@ const HospitalLocator = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Get user location when component mounts
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const location = {
@@ -28,9 +27,8 @@ const HospitalLocator = () => {
     );
   }, []);
 
-  // Function to calculate distance between two points using Haversine formula
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
-    const R = 6371; // Radius of the Earth in kilometers
+    const R = 6371;
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
     const a = 
@@ -38,8 +36,7 @@ const HospitalLocator = () => {
       Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
       Math.sin(dLon / 2) * Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    const distance = R * c; // Distance in kilometers
-    return distance;
+    return R * c;
   };
 
   const fetchHospitals = (location, radius) => {
@@ -47,19 +44,15 @@ const HospitalLocator = () => {
     const map = new window.google.maps.Map(document.createElement('div'));
     const service = new window.google.maps.places.PlacesService(map);
 
-    // Use a larger radius for the API call to ensure we get enough results
-    const apiRadius = Math.max(radius, 10000); // At least 10km for API call
-
     const request = {
       location,
-      radius: apiRadius,
+      radius, // ✅ Use exact radius selected by user
       type: 'hospital',
     };
 
     service.nearbySearch(request, (results, status) => {
       setLoading(false);
       if (status === window.google.maps.places.PlacesServiceStatus.OK) {
-        // Filter results based on actual distance
         const filteredHospitals = results.filter(hospital => {
           if (hospital.geometry && hospital.geometry.location) {
             const hospitalLat = hospital.geometry.location.lat();
@@ -70,19 +63,13 @@ const HospitalLocator = () => {
               hospitalLat, 
               hospitalLng
             );
-            
-            // Add distance to hospital object for display
             hospital.distance = distance;
-            
-            // Return true if hospital is within selected radius
-            return distance <= (radius / 1000); // Convert radius from meters to kilometers
+            return distance <= (radius / 1000); // ✅ Accurate filter
           }
           return false;
         });
 
-        // Sort by distance (closest first)
         filteredHospitals.sort((a, b) => a.distance - b.distance);
-        
         setHospitals(filteredHospitals);
       } else {
         console.error('❌ No places found', { status });
@@ -96,7 +83,7 @@ const HospitalLocator = () => {
       alert('Please select a range first');
       return;
     }
-    
+
     if (!userLocation) {
       alert('Location not available. Please try again.');
       return;
@@ -118,96 +105,96 @@ const HospitalLocator = () => {
 
   if (showRangeSelector) {
     return (
-       <>
-      <NavigationBar />
-      
-      <div className="hospital-locator-container">
-        <h2>Find Nearby Hospitals</h2>
-        <div className="range-selector">
-          <h3>Select Search Range:</h3>
-          <div className="range-options">
-            <label>
-              <input
-                type="radio"
-                value="1000"
-                checked={selectedRange === '1000'}
-                onChange={(e) => setSelectedRange(e.target.value)}
-              />
-              1 km
-            </label>
-            <label>
-              <input
-                type="radio"
-                value="3000"
-                checked={selectedRange === '3000'}
-                onChange={(e) => setSelectedRange(e.target.value)}
-              />
-              3 km
-            </label>
-            <label>
-              <input
-                type="radio"
-                value="5000"
-                checked={selectedRange === '5000'}
-                onChange={(e) => setSelectedRange(e.target.value)}
-              />
-              5 km
-            </label>
-            <label>
-              <input
-                type="radio"
-                value="10000"
-                checked={selectedRange === '10000'}
-                onChange={(e) => setSelectedRange(e.target.value)}
-              />
-              10 km
-            </label>
+      <>
+        <NavigationBar />
+        <div className="hospital-locator-container">
+          <h2>Find Nearby Hospitals</h2>
+          <div className="range-selector">
+            <h3>Select Search Range:</h3>
+            <div className="range-options">
+              <label>
+                <input
+                  type="radio"
+                  value="1000"
+                  checked={selectedRange === '1000'}
+                  onChange={(e) => setSelectedRange(e.target.value)}
+                />
+                1 km
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  value="3000"
+                  checked={selectedRange === '3000'}
+                  onChange={(e) => setSelectedRange(e.target.value)}
+                />
+                3 km
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  value="5000"
+                  checked={selectedRange === '5000'}
+                  onChange={(e) => setSelectedRange(e.target.value)}
+                />
+                5 km
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  value="10000"
+                  checked={selectedRange === '10000'}
+                  onChange={(e) => setSelectedRange(e.target.value)}
+                />
+                10 km
+              </label>
+            </div>
+            <button 
+              onClick={handleRangeSelection}
+              disabled={!userLocation}
+              className="search-btn"
+            >
+              {userLocation ? 'Search Hospitals' : 'Getting your location...'}
+            </button>
           </div>
-          <button 
-            onClick={handleRangeSelection}
-            disabled={!userLocation}
-            className="search-btn"
-          >
-            {userLocation ? 'Search Hospitals' : 'Getting your location...'}
-          </button>
         </div>
-      </div>
       </>
     );
   }
 
   return (
     <>
-          <NavigationBar />
-    <div className="hospital-locator-container">
-      <div className="header-section">
-        <h2>Nearby Hospitals ({selectedRange/1000} km range)</h2>
-        <button onClick={handleBackToRangeSelector} className="back-btn">
-          Change Range
-        </button>
-      </div>
-      
-      {loading ? (
-        <p>Loading hospitals...</p>
-      ) : (
-        <div className="hospital-cards">
-          {hospitals.length > 0 ? (
-            hospitals.map((hospital) => (
-              <div className="hospital-card" key={hospital.place_id}>
-                <h3>{hospital.name}</h3>
-                <p><strong>Address:</strong> {hospital.vicinity}</p>
-                <p><strong>Rating:</strong> {hospital.rating || 'N/A'}</p>
-                <button onClick={() => handleViewMap(hospital.place_id)}>
-                  View on Map
-                </button>
-              </div>
-            ))
-          ) : (
-            <p>No hospitals found in the selected range.</p>
-          )}
+      <NavigationBar />
+      <div className="hospital-locator-container">
+        <div className="header-section">
+          <h2>Nearby Hospitals ({selectedRange / 1000} km range)</h2>
+          <button onClick={handleBackToRangeSelector} className="back-btn">
+            Change Range
+          </button>
         </div>
-      )}
-    </div>
+
+        {loading ? (
+          <p>Loading hospitals...</p>
+        ) : (
+          <div className="hospital-cards">
+            {hospitals.length > 0 ? (
+              hospitals.map((hospital) => (
+                <div className="hospital-card" key={hospital.place_id}>
+                  <h3>{hospital.name}</h3>
+                  <p><strong>Address:</strong> {hospital.vicinity}</p>
+                  <p><strong>Rating:</strong> {hospital.rating || 'N/A'}</p>
+                  <p><strong>Distance:</strong> {hospital.distance.toFixed(2)} km</p>
+                  <button onClick={() => handleViewMap(hospital.place_id)}>
+                    View on Map
+                  </button>
+                </div>
+              ))
+            ) : (
+              <p>No hospitals found in the selected range.</p>
+            )}
+          </div>
+        )}
+      </div>
     </>
   );
 };
