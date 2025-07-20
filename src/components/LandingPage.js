@@ -61,9 +61,6 @@ const LandingPage = () => {
                 </p>
                 <div className="cta-buttons">
                   <button className="btn btn-dark contact-now">Contact Us</button>
-                  <button className="btn btn-outline how-to-doctor">
-                    <span className="play-icon">▶</span> Watch Video
-                  </button>
                 </div>
               </div>
             </div>
