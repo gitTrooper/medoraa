@@ -60,12 +60,13 @@ const HealthCategories = () => {
         console.error('Error fetching doctors:', error);
       }
     };
+
     fetchDoctors();
   }, []);
 
   const handleConsultClick = (specialization) => {
     if (currentUser) {
-      navigate(/specialists/${encodeURIComponent(specialization)});
+      navigate(`/specialists/${encodeURIComponent(specialization)}`);
     } else {
       alert("Please log in to consult a doctor.");
       navigate("/login");
