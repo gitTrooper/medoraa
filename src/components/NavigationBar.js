@@ -9,7 +9,6 @@ import "../styles/NavigationBar.css";
 const NavigationBar = () => {
   const { currentUser, loadingAuth } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [logoLoaded, setLogoLoaded] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
@@ -30,14 +29,6 @@ const NavigationBar = () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [dropdownOpen, mobileMenuOpen]);
-
-  // Preload the logo image
-  useEffect(() => {
-    const img = new Image();
-    img.onload = () => setLogoLoaded(true);
-    img.onerror = () => setLogoLoaded(true);
-    img.src = "/images/weblogo.png";
-  }, []);
 
   const handleLogout = async () => {
     try {
@@ -86,25 +77,8 @@ const NavigationBar = () => {
     return (
       <nav className="navbar navbar-expand-lg fixed-navbar">
         <div className="container-fluid">
-          {/* Logo Section */}
-          <Link
-            className="navbar-brand"
-            to="/"
-          >
-            <div className="logo-container">
-              {logoLoaded ? (
-                <img
-                  src="/images/weblogo.png"
-                  alt="Medoraa Logo"
-                  className="logo-image"
-                  onLoad={() => setLogoLoaded(true)}
-                />
-              ) : (
-                <div className="logo-placeholder">
-                  M
-                </div>
-              )}
-            </div>
+          {/* Brand Section */}
+          <Link to="/" className="navbar-brand">
             <span className="logo-text">Medoraa</span>
           </Link>
         </div>
@@ -115,27 +89,8 @@ const NavigationBar = () => {
   return (
     <nav className="navbar navbar-expand-lg fixed-navbar">
       <div className="container-fluid">
-        {/* Logo Section */}
-        <Link 
-          className="navbar-brand" 
-          to="/" 
-          onClick={handleLinkClick}
-        >
-          <div className="logo-container">
-            {logoLoaded ? (
-              <img
-                src="/images/weblogo.png"
-                alt="Medoraa Logo"
-                className="logo-image"
-                onLoad={() => setLogoLoaded(true)}
-                onError={() => setLogoLoaded(true)}
-              />
-            ) : (
-              <div className="logo-placeholder">
-                M
-              </div>
-            )}
-          </div>
+        {/* Brand Section */}
+        <Link to="/" className="navbar-brand">
           <span className="logo-text">Medoraa</span>
         </Link>
         
@@ -152,7 +107,7 @@ const NavigationBar = () => {
         </button>
         
         {/* Collapsible Content */}
-        <div className={`navbar-collapse ${mobileMenuOpen ? 'show' : ''}`} id="navbarNav">
+        <div className={navbar-collapse ${mobileMenuOpen ? 'show' : ''}} id="navbarNav">
           {/* Navigation Links - Center */}
           <ul className="navbar-nav mx-auto">
             <li className="nav-item">
