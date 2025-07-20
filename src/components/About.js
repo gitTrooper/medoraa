@@ -114,11 +114,12 @@ const AboutUsPage = () => {
         .hero-section {
           background: linear-gradient(135deg, var(--dashboard-primary) 0%, var(--dashboard-dark) 100%);
           color: white;
-          padding: 80px 0;
+          padding: 40px 0; /* Reduced from original padding */
           position: relative;
           overflow: hidden;
+          min-height: auto; /* Remove any min-height constraints */
         }
-        
+
         .hero-section::before {
           content: '';
           position: absolute;
@@ -128,8 +129,21 @@ const AboutUsPage = () => {
           bottom: 0;
           background: url('/images/weblogo.png') no-repeat center center;
           background-size: cover;
-
           opacity: 0.3;
+        }
+
+        .hero-content {
+          transform: translateY(0); /* Removed negative transform */
+        }
+
+        .hero-content h1 {
+          font-size: 2.5rem; /* Slightly smaller heading */
+          margin-bottom: 1rem; /* Reduced margin */
+        }
+
+        .hero-content .lead {
+          font-size: 1.1rem; /* Slightly smaller lead text */
+          margin-bottom: 1.5rem; /* Reduced margin */
         }
 
         .feature-card {
@@ -220,7 +234,15 @@ const AboutUsPage = () => {
 
         @media (max-width: 768px) {
           .hero-section {
-            padding: 50px 0;
+            padding: 30px 0; /* Even more compact on mobile */
+          }
+          
+          .hero-content h1 {
+            font-size: 2rem; /* Smaller on mobile */
+          }
+          
+          .hero-content .lead {
+            font-size: 1rem;
           }
           
           .feature-card {
@@ -231,24 +253,28 @@ const AboutUsPage = () => {
             margin-bottom: 1rem;
           }
         }
+
+        @media (max-width: 576px) {
+          .hero-section {
+            padding: 20px 0; /* Very compact on small screens */
+          }
+          
+          .hero-content h1 {
+            font-size: 1.75rem;
+          }
+        }
       `}</style>
 
       {/* Hero Section */}
       <section className="hero-section">
         <div className="container position-relative">
           <div className="row align-items-center">
-            <div className="col-lg-8 mx-auto text-center">
-         
-              <h1 className="display-4 fw-bold mb-4">Revolutionizing Healthcare Access</h1>
-              <p className="lead mb-4">
+            <div className="col-lg-8 mx-auto text-center hero-content">
+              <h1 className="fw-bold mb-3">Revolutionizing Healthcare Access</h1>
+              <p className="lead mb-3">
                 Empowering individuals with intelligent healthcare solutions through cutting-edge technology, 
                 personalized care, and seamless digital experiences that put your health first.
               </p>
-              <div className="d-flex justify-content-center gap-3 flex-wrap">
-                <span className="badge bg-light text-dark px-3 py-2 rounded-pill">AI-Powered</span>
-                <span className="badge bg-light text-dark px-3 py-2 rounded-pill">User-Centric</span>
-                <span className="badge bg-light text-dark px-3 py-2 rounded-pill">24/7 Available</span>
-              </div>
             </div>
           </div>
         </div>
@@ -340,9 +366,6 @@ const AboutUsPage = () => {
           </div>
         </div>
       </section>
-
-      {/* Stats Section */}
-   
 
       {/* Technology Section */}
       <section className="py-5" style={{ background: 'var(--dashboard-light)' }}>
