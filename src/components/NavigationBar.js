@@ -37,7 +37,9 @@ const NavigationBar = () => {
       setDropdownOpen(false);
       setMobileMenuOpen(false);
       // Clear any stored redirect paths
-      sessionStorage.removeItem('redirectAfterLogin');
+      if (typeof Storage !== 'undefined') {
+        sessionStorage.removeItem('redirectAfterLogin');
+      }
       navigate('/');
     } catch (error) {
       console.error("Error during logout:", error);
@@ -61,7 +63,9 @@ const NavigationBar = () => {
     if (!currentUser) {
       // Store the intended destination (but check if user is truly not authenticated)
       if (!loadingAuth) {
-        sessionStorage.setItem('redirectAfterLogin', path);
+        if (typeof Storage !== 'undefined') {
+          sessionStorage.setItem('redirectAfterLogin', path);
+        }
         navigate('/login', { 
           state: { from: location.pathname },
           replace: false 
@@ -77,10 +81,9 @@ const NavigationBar = () => {
     return (
       <nav className="navbar navbar-expand-lg fixed-navbar">
         <div className="container-fluid">
-          {/* Brand Section */}
-          <Link to="/" className="navbar-brand">
+          <div className="navbar-brand">
             <span className="logo-text">Medoraa</span>
-          </Link>
+          </div>
         </div>
       </nav>
     );
@@ -89,8 +92,8 @@ const NavigationBar = () => {
   return (
     <nav className="navbar navbar-expand-lg fixed-navbar">
       <div className="container-fluid">
-        {/* Brand Section */}
-        <Link to="/" className="navbar-brand">
+        {/* Brand Section - Text Only */}
+        <Link to="/" className="navbar-brand" style={{ textDecoration: 'none' }}>
           <span className="logo-text">Medoraa</span>
         </Link>
         
@@ -107,11 +110,13 @@ const NavigationBar = () => {
         </button>
         
         {/* Collapsible Content */}
-        <div className={navbar-collapse ${mobileMenuOpen ? 'show' : ''}} id="navbarNav">
+        <div className={`navbar-collapse ${mobileMenuOpen ? 'show' : ''}`} id="navbarNav">
           {/* Navigation Links - Center */}
           <ul className="navbar-nav mx-auto">
             <li className="nav-item">
-              <Link className="nav-link" to="/aboutus" onClick={handleLinkClick}>About Us</Link>
+              <Link className="nav-link" to="/aboutus" onClick={handleLinkClick}>
+                About Us
+              </Link>
             </li>
             <li className="nav-item">
               <Link 
@@ -170,11 +175,14 @@ const NavigationBar = () => {
                 >
                   <img
                     src={currentUser.photoURL || "https://cdn-icons-png.flaticon.com/512/847/847969.png"}
-                    alt="User"
+                    alt="User Avatar"
                     className="user-icon"
+                    onError={(e) => {
+                      e.target.src = "https://cdn-icons-png.flaticon.com/512/847/847969.png";
+                    }}
                   />
                   <span className="user-name">
-                    {currentUser.displayName || currentUser.email.split('@')[0]}
+                    {currentUser.displayName || currentUser.email?.split('@')[0] || 'User'}
                   </span>
                 </button>
                 {dropdownOpen && (
