@@ -1,4 +1,4 @@
-// Fixed AdminPanel.js with correct collection names and consultationMode handling
+// Updated AdminPanel.js with correct hospital signup structure and field mappings
 import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import {
@@ -26,7 +26,7 @@ import {
   Tab,
   Spinner
 } from 'react-bootstrap';
-import { FaEye, FaCheck, FaTimes, FaClock, FaUserMd, FaHospital, FaMapMarkerAlt, FaGlobe } from 'react-icons/fa';
+import { FaEye, FaCheck, FaTimes, FaClock, FaUserMd, FaHospital, FaMapMarkerAlt, FaGlobe, FaPhone } from 'react-icons/fa';
 
 const AdminPanel = () => {
   const [pendingDoctors, setPendingDoctors] = useState([]);
@@ -44,7 +44,7 @@ const AdminPanel = () => {
   const fetchPending = async () => {
     setFetchLoading(true);
     try {
-      // Fetch pending doctors - FIXED: Use correct plural collection name
+      // Fetch pending doctors
       const doctorSnap = await getDocs(collection(db, 'tempDoctorSignups'));
       const doctors = doctorSnap.docs.map(doc => ({ 
         id: doc.id, 
@@ -52,7 +52,7 @@ const AdminPanel = () => {
       })).filter(doc => doc.status === 'pending_admin_approval');
       setPendingDoctors(doctors);
 
-      // Fetch pending hospitals - FIXED: Use correct plural collection name
+      // Fetch pending hospitals
       const hospitalSnap = await getDocs(collection(db, 'tempHospitalSignups'));
       const hospitals = hospitalSnap.docs.map(doc => ({ 
         id: doc.id, 
@@ -62,8 +62,6 @@ const AdminPanel = () => {
 
       console.log('Fetched pending doctors:', doctors.length);
       console.log('Fetched pending hospitals:', hospitals.length);
-      console.log('Doctor data:', doctors);
-      console.log('Hospital data:', hospitals);
 
     } catch (error) {
       console.error('Fetch error:', error);
@@ -82,12 +80,13 @@ const AdminPanel = () => {
     setTimeout(() => setAlert({ show: false, message: '', type: '' }), 5000);
   };
 
-  // Create hospital document structure with all required fields
+  // Create hospital document structure matching the signup structure
   const createHospitalDocument = async (hospitalId, hospitalData) => {
     try {
       // Use existing location from signup or create default
       const location = hospitalData.location || new GeoPoint(0, 0);
 
+      // Match the exact structure from HospitalSignupPage createHospitalDocument function
       const finalHospitalData = {
         name: hospitalData.hospitalName,
         hospitalType: hospitalData.hospitalType,
@@ -99,15 +98,14 @@ const AdminPanel = () => {
         emergencyPhone: hospitalData.emergencyPhone || "",
         email: hospitalData.email,
         website: hospitalData.website || "",
-        emailVerified: hospitalData.emailVerified || false,
+        emailVerified: true, // Set to true since admin is approving
         userType: "hospital",
         createdAt: hospitalData.submittedAt || new Date().toISOString(),
         isActive: true,
         adminApproved: true,
-        adminReviewed: true,
         approvedAt: serverTimestamp(),
-        approvedBy: 'admin',
         uid: hospitalData.uid,
+        // Include image metadata from signup
         hospitalImages: hospitalData.hospitalImages || [],
         registrationCertificate: hospitalData.registrationCertificate || null
       };
@@ -115,25 +113,26 @@ const AdminPanel = () => {
       // Create main hospital document
       await setDoc(doc(db, 'hospitals', hospitalId), finalHospitalData);
 
-      // Create services subcollection
+      // Create services subcollection exactly as in signup
       const servicesRef = collection(db, 'hospitals', hospitalId, 'services');
       await setDoc(doc(servicesRef, 'bedAvailability'), {
         ICU: 0,
         General: 0,
         Emergency: 0,
-        lastUpdated: serverTimestamp()
+        lastUpdated: new Date()
       });
 
+      // Create emergency service document
       await setDoc(doc(servicesRef, 'emergency'), {
         available: false,
-        lastUpdated: serverTimestamp()
+        lastUpdated: new Date()
       });
 
       // Create doctorIds subcollection
       const doctorIdsRef = collection(db, 'hospitals', hospitalId, 'doctorIds');
       await setDoc(doc(doctorIdsRef, 'list'), {
         doctorIds: [],
-        lastUpdated: serverTimestamp(),
+        lastUpdated: new Date(),
         totalDoctors: 0
       });
 
@@ -152,7 +151,7 @@ const AdminPanel = () => {
       console.log(`Approving ${entryType}:`, entry);
 
       if (entryType === 'doctor') {
-        // FIXED: Include consultationMode in approved doctor data
+        // Include consultationMode in approved doctor data
         const approvedDoctorData = {
           firstName: entry.firstName,
           lastName: entry.lastName,
@@ -175,13 +174,13 @@ const AdminPanel = () => {
           generalCheckupFees: entry.generalCheckupFees || "",
           specialistFees: entry.specialistFees || "",
           intro: entry.intro || "",
-          consultationMode: entry.consultationMode || [] // FIXED: Added consultationMode
+          consultationMode: entry.consultationMode || []
         };
 
         // Use the UID as document ID
         await setDoc(doc(db, 'doctors', entry.uid), approvedDoctorData);
         
-        // FIXED: Remove from correct temp collection (plural)
+        // Remove from temp collection
         await deleteDoc(doc(db, 'tempDoctorSignups', entry.id));
         
         // Update local state
@@ -189,28 +188,15 @@ const AdminPanel = () => {
         showAlert(`Doctor ${entry.firstName} ${entry.lastName} approved successfully.`, 'success');
 
       } else if (entryType === 'hospital') {
-        // For hospitals: create complete hospital structure with all fields
+        // For hospitals: create complete hospital structure
         await createHospitalDocument(entry.uid, entry);
         
-        // FIXED: Remove from correct temp collection (plural)
+        // Remove from temp collection
         await deleteDoc(doc(db, 'tempHospitalSignups', entry.id));
         
         // Update local state
         setPendingHospitals(prev => prev.filter(h => h.id !== entry.id));
         showAlert(`Hospital ${entry.hospitalName} approved successfully.`, 'success');
-      }
-
-      // Update admin approval queue if it exists
-      try {
-        const queueDocRef = doc(db, 'admin_approval_queue', entry.requestId || entry.id);
-        await updateDoc(queueDocRef, {
-          status: 'approved',
-          adminApproved: true,
-          approvedAt: serverTimestamp(),
-          approvedBy: 'admin'
-        });
-      } catch (queueError) {
-        console.log('Admin approval queue not found or already processed');
       }
 
     } catch (error) {
@@ -230,7 +216,6 @@ const AdminPanel = () => {
     
     setLoading(true);
     try {
-      // FIXED: Use correct plural collection names
       const tempPath = entryType === 'doctor' ? 'tempDoctorSignups' : 'tempHospitalSignups';
       
       // Update the temp document with rejection details
@@ -241,20 +226,6 @@ const AdminPanel = () => {
         rejectionReason: reason,
         adminReviewed: true
       });
-
-      // Update admin approval queue if it exists
-      try {
-        const queueDocRef = doc(db, 'admin_approval_queue', entry.requestId || entry.id);
-        await updateDoc(queueDocRef, {
-          status: 'rejected',
-          adminApproved: false,
-          rejectedAt: serverTimestamp(),
-          rejectedBy: 'admin',
-          rejectionReason: reason
-        });
-      } catch (queueError) {
-        console.log('Admin approval queue not found or already processed');
-      }
 
       // Update local state
       if (entryType === 'doctor') {
@@ -489,7 +460,6 @@ const AdminPanel = () => {
                     <div className="mb-3">
                       <strong>Specialist Fees:</strong> ₹{selected.specialistFees || 'Not provided'}
                     </div>
-                    {/* FIXED: Added consultationMode display */}
                     <div className="mb-3">
                       <strong>Consultation Mode:</strong>
                       <div className="mt-1">
@@ -528,11 +498,15 @@ const AdminPanel = () => {
                       <strong>Pincode:</strong> {selected.pincode}
                     </div>
                     <div className="mb-3">
-                      <strong>Phone:</strong> {selected.phone}
+                      <strong>Main Phone:</strong> 
+                      <FaPhone className="ms-2 me-1 text-primary" />
+                      {selected.phone}
                     </div>
                     {selected.emergencyPhone && (
                       <div className="mb-3">
-                        <strong>Emergency Phone:</strong> {selected.emergencyPhone}
+                        <strong>Emergency Phone:</strong> 
+                        <FaPhone className="ms-2 me-1 text-danger" />
+                        {selected.emergencyPhone}
                       </div>
                     )}
                     {selected.website && (
@@ -549,8 +523,8 @@ const AdminPanel = () => {
                         <strong>Location:</strong>
                         <div className="mt-1">
                           <FaMapMarkerAlt className="me-1 text-danger" />
-                          Lat: {selected.location.latitude?.toFixed(6) || selected.location._lat?.toFixed(6) || 'N/A'}, 
-                          Lng: {selected.location.longitude?.toFixed(6) || selected.location._long?.toFixed(6) || 'N/A'}
+                          Lat: {selected.location.latitude?.toFixed(6) || selected.location._latitude?.toFixed(6) || 'N/A'}, 
+                          Lng: {selected.location.longitude?.toFixed(6) || selected.location._longitude?.toFixed(6) || 'N/A'}
                         </div>
                       </div>
                     )}
@@ -562,6 +536,9 @@ const AdminPanel = () => {
                 </div>
                 <div className="mb-3">
                   <strong>User ID:</strong> {selected.uid}
+                </div>
+                <div className="mb-3">
+                  <strong>Request ID:</strong> {selected.requestId || 'N/A'}
                 </div>
               </Col>
               
@@ -583,14 +560,16 @@ const AdminPanel = () => {
                 {type === 'hospital' && selected.hospitalImages?.length > 0 && (
                   <div className="mb-3">
                     <strong>Hospital Images ({selected.hospitalImages.length}):</strong>
-                    <div className="d-flex flex-wrap mt-2">
+                    <div className="row g-2 mt-1">
                       {selected.hospitalImages.map((img, idx) => (
-                        <div key={idx} className="position-relative m-1">
+                        <div key={idx} className="col-6">
                           <img
                             src={img.url}
                             alt={`Hospital ${idx + 1}`}
-                            className="img-thumbnail"
-                            style={{ height: '80px', width: '80px', objectFit: 'cover' }}
+                            className="img-thumbnail w-100"
+                            style={{ height: '80px', objectFit: 'cover', cursor: 'pointer' }}
+                            onClick={() => window.open(img.url, '_blank')}
+                            title="Click to view full image"
                           />
                         </div>
                       ))}
@@ -599,7 +578,7 @@ const AdminPanel = () => {
                 )}
 
                 {/* Hospital registration certificate */}
-                {type === 'hospital' && selected.registrationCertificate?.url && (
+                {type === 'hospital' && selected.registrationCertificate && (
                   <div className="mt-3">
                     <strong>Registration Certificate:</strong>
                     <div className="mt-2">
@@ -607,6 +586,7 @@ const AdminPanel = () => {
                         <div className="text-center p-3 border rounded">
                           <i className="fas fa-file-pdf text-danger" style={{ fontSize: '2rem' }}></i>
                           <p className="mt-2 mb-0">PDF Certificate</p>
+                          <p className="small text-muted">{selected.registrationCertificate.name}</p>
                           <a 
                             href={selected.registrationCertificate.url} 
                             target="_blank" 
@@ -617,12 +597,17 @@ const AdminPanel = () => {
                           </a>
                         </div>
                       ) : (
-                        <img
-                          src={selected.registrationCertificate.url}
-                          alt="Registration Certificate"
-                          className="img-thumbnail"
-                          style={{ maxHeight: '150px', width: 'auto' }}
-                        />
+                        <div className="text-center">
+                          <img
+                            src={selected.registrationCertificate.url}
+                            alt="Registration Certificate"
+                            className="img-thumbnail"
+                            style={{ maxHeight: '150px', width: 'auto', cursor: 'pointer' }}
+                            onClick={() => window.open(selected.registrationCertificate.url, '_blank')}
+                            title="Click to view full image"
+                          />
+                          <p className="small text-muted mt-1">{selected.registrationCertificate.name}</p>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -635,6 +620,33 @@ const AdminPanel = () => {
           <Button variant="secondary" onClick={() => setShowDetailsModal(false)}>
             Close
           </Button>
+          {selected && (
+            <div className="ms-auto">
+              <Button 
+                variant="success" 
+                className="me-2"
+                onClick={() => {
+                  setShowDetailsModal(false);
+                  approveEntry(selected, type);
+                }} 
+                disabled={loading}
+              >
+                <FaCheck className="me-1" />
+                Approve
+              </Button>
+              <Button 
+                variant="danger"
+                onClick={() => {
+                  setShowDetailsModal(false);
+                  setShowRejectModal(true);
+                }} 
+                disabled={loading}
+              >
+                <FaTimes className="me-1" />
+                Reject
+              </Button>
+            </div>
+          )}
         </Modal.Footer>
       </Modal>
 
@@ -663,6 +675,9 @@ const AdminPanel = () => {
               onChange={(e) => setRejectionReason(e.target.value)}
               placeholder="Please provide a clear reason for rejection..."
             />
+            <Form.Text className="text-muted">
+              This reason will be stored for record keeping and potential future reference.
+            </Form.Text>
           </Form.Group>
         </Modal.Body>
         <Modal.Footer>
