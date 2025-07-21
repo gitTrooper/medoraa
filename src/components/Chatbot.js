@@ -1,5 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import NavigationBar from './NavigationBar';
+import { auth, db } from '../firebase'; // Adjust path as needed
+import { onAuthStateChanged } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
 
 const Chatbot = () => {
   let [messages, setMessages] = useState([
@@ -11,22 +14,158 @@ const Chatbot = () => {
   ]);
   let [userInput, setUserInput] = useState("");
   let [isLoading, setIsLoading] = useState(false);
-  let [isLoadingProfile, setIsLoadingProfile] = useState(false);
+  let [isLoadingProfile, setIsLoadingProfile] = useState(true);
   let chatboxRef = useRef(null);
-  let [medicalProfile, setMedicalProfile] = useState(true);
+  let [medicalProfile, setMedicalProfile] = useState(null);
+  let [userHealthProfile, setUserHealthProfile] = useState("");
   let [sessionId] = useState(() => `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
+  let [currentUser, setCurrentUser] = useState(null);
   
-  // Mock medical profile data - replace with actual user data
-  let healthProfile = `
-    Age: 28
-    Gender: Female
-    Medical History: Hypertension, Seasonal allergies
-    Current Medications: Lisinopril 10mg daily, Claritin as needed
-    Allergies: Penicillin
-    Recent Symptoms: Mild fatigue, occasional headaches
-    Lifestyle: Regular exercise 3x/week, Non-smoker, Occasional alcohol consumption
-    Family History: Heart disease (father), Diabetes (mother)
-  `.trim();
+  // Function to get current authenticated user
+  let getCurrentUser = () => {
+    return auth.currentUser;
+  };
+
+  // Function to load user's medical profile from Firebase
+  let loadUserMedicalProfile = async (user) => {
+    try {
+      setIsLoadingProfile(true);
+      
+      if (!user) {
+        console.log("No authenticated user found");
+        setMedicalProfile(false);
+        setUserHealthProfile("No medical profile available. Please log in to access personalized assistance.");
+        return;
+      }
+
+      console.log("Loading medical profile for user:", user.uid);
+
+      // Get user's medical profile from Firestore
+      const medicalProfileRef = doc(db, "users", user.uid, "medicalData", "medical profile");
+      const profileDoc = await getDoc(medicalProfileRef);
+
+      if (!profileDoc.exists()) {
+        console.log("No medical profile found for user");
+        setMedicalProfile(false);
+        setUserHealthProfile("No medical profile available. Please complete your health profile for personalized assistance.");
+        return;
+      }
+
+      const profileData = profileDoc.data();
+      console.log("Medical profile data:", profileData);
+      
+      if (profileData && Object.keys(profileData).length > 0) {
+        // Format the profile data for the medical API
+        let formattedProfile = formatMedicalProfile(profileData);
+        setUserHealthProfile(formattedProfile);
+        setMedicalProfile(true);
+        console.log("Medical profile loaded successfully");
+      } else {
+        setMedicalProfile(false);
+        setUserHealthProfile("Medical profile is empty. Please complete your health profile for personalized assistance.");
+      }
+
+    } catch (error) {
+      console.error('Error loading medical profile:', error);
+      setMedicalProfile(false);
+      
+      // More specific error messages
+      if (error.code === 'permission-denied') {
+        setUserHealthProfile("Access denied. Please check your permissions and try again.");
+      } else if (error.code === 'unavailable') {
+        setUserHealthProfile("Service temporarily unavailable. Please try again later.");
+      } else {
+        setUserHealthProfile("Unable to load medical profile. Please check your connection and try again.");
+      }
+    } finally {
+      setIsLoadingProfile(false);
+    }
+  };
+
+  // Function to format profile data for the medical API
+  let formatMedicalProfile = (profileData) => {
+    let profile = [];
+    
+    // Helper function to check if field has meaningful value
+    const hasValue = (value) => {
+      return value && value.trim && value.trim() !== "" && value !== "null" && value !== null;
+    };
+    
+    // Basic demographics
+    if (hasValue(profileData.age)) profile.push(`Age: ${profileData.age}`);
+    if (hasValue(profileData.gender)) profile.push(`Gender: ${profileData.gender}`);
+    if (hasValue(profileData.height)) profile.push(`Height: ${profileData.height}`);
+    if (hasValue(profileData.weight)) profile.push(`Weight: ${profileData.weight}`);
+    if (hasValue(profileData.ethnicity)) profile.push(`Ethnicity: ${profileData.ethnicity}`);
+    if (hasValue(profileData.geographicalLocation)) profile.push(`Location: ${profileData.geographicalLocation}`);
+    
+    // Medical conditions
+    if (hasValue(profileData.diabetes)) profile.push(`Diabetes: ${profileData.diabetes}`);
+    if (hasValue(profileData.hypertension)) profile.push(`Hypertension: ${profileData.hypertension}`);
+    if (hasValue(profileData.cardiovascularDisease)) profile.push(`Cardiovascular Disease: ${profileData.cardiovascularDisease}`);
+    if (hasValue(profileData.asthma)) profile.push(`Asthma: ${profileData.asthma}`);
+    if (hasValue(profileData.thyroidProblems)) profile.push(`Thyroid Problems: ${profileData.thyroidProblems}`);
+    if (hasValue(profileData.liverKidneyConditions)) profile.push(`Liver/Kidney Conditions: ${profileData.liverKidneyConditions}`);
+    if (hasValue(profileData.mentalHealthIssues)) profile.push(`Mental Health Issues: ${profileData.mentalHealthIssues}`);
+    if (hasValue(profileData.chronicInfections)) profile.push(`Chronic Infections: ${profileData.chronicInfections}`);
+    
+    // Medical history
+    if (hasValue(profileData.pastIllnesses)) profile.push(`Past Illnesses: ${profileData.pastIllnesses}`);
+    if (hasValue(profileData.majorSurgeries)) profile.push(`Major Surgeries: ${profileData.majorSurgeries}`);
+    if (hasValue(profileData.hospitalizations)) profile.push(`Hospitalizations: ${profileData.hospitalizations}`);
+    if (hasValue(profileData.familyHistory)) profile.push(`Family History: ${profileData.familyHistory}`);
+    
+    // Current medications and allergies
+    if (hasValue(profileData.currentMedications)) profile.push(`Current Medications: ${profileData.currentMedications}`);
+    if (hasValue(profileData.otcSupplements)) profile.push(`OTC Supplements: ${profileData.otcSupplements}`);
+    if (hasValue(profileData.allergies)) profile.push(`Allergies: ${profileData.allergies}`);
+    if (hasValue(profileData.knownDrugAllergies)) profile.push(`Drug Allergies: ${profileData.knownDrugAllergies}`);
+    
+    // Lifestyle factors
+    if (hasValue(profileData.smokingStatus)) profile.push(`Smoking Status: ${profileData.smokingStatus}`);
+    if (hasValue(profileData.alcoholConsumption)) profile.push(`Alcohol Consumption: ${profileData.alcoholConsumption}`);
+    if (hasValue(profileData.exerciseFrequency)) profile.push(`Exercise Frequency: ${profileData.exerciseFrequency}`);
+    if (hasValue(profileData.dietaryHabits)) profile.push(`Dietary Habits: ${profileData.dietaryHabits}`);
+    if (hasValue(profileData.sleepPattern)) profile.push(`Sleep Pattern: ${profileData.sleepPattern}`);
+    
+    // Recent changes
+    if (hasValue(profileData.recentChanges)) profile.push(`Recent Changes: ${profileData.recentChanges}`);
+    
+    return profile.length > 0 ? profile.join('\n') : "No detailed medical profile available.";
+  };
+
+  // Set up authentication listener
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      console.log("Auth state changed:", user ? user.uid : "No user");
+      setCurrentUser(user);
+      
+      if (user) {
+        // User is signed in, load their medical profile
+        loadUserMedicalProfile(user);
+      } else {
+        // User is signed out
+        setIsLoadingProfile(false);
+        setMedicalProfile(false);
+        setUserHealthProfile("No medical profile available. Please log in to access personalized assistance.");
+      }
+    });
+
+    // Cleanup subscription on unmount
+    return () => unsubscribe();
+  }, []);
+
+  // Function to refresh profile (call this when user updates their profile)
+  let refreshUserProfile = async () => {
+    const user = getCurrentUser();
+    if (user) {
+      await loadUserMedicalProfile(user);
+    } else {
+      console.log("No authenticated user to refresh profile");
+      setMedicalProfile(false);
+      setUserHealthProfile("Please log in to access your medical profile.");
+    }
+  };
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -215,237 +354,209 @@ const Chatbot = () => {
   };
 
   // Process API response to handle array format and combine multiple parts
-  // Process API response to handle array format and combine multiple parts
-let processAPIResponse = (rawResponse) => {
- 
-  
-  if (!rawResponse) {
-    return 'I apologize, but I didn\'t receive a proper response. Please try again.';
-  }
-
-  try {
-    // If it's already a string, return it
-    if (typeof rawResponse === 'string') {
-      return rawResponse.trim();
+  let processAPIResponse = (rawResponse) => {
+    if (!rawResponse) {
+      return 'I apologize, but I didn\'t receive a proper response. Please try again.';
     }
 
-    // If it's an array, process each element
-    if (Array.isArray(rawResponse)) {
-      let combinedResponse = '';
-      
-      for (let i = 0; i < rawResponse.length; i++) {
-        let part = rawResponse[i];
+    try {
+      // If it's already a string, return it
+      if (typeof rawResponse === 'string') {
+        return rawResponse.trim();
+      }
+
+      // If it's an array, process each element
+      if (Array.isArray(rawResponse)) {
+        let combinedResponse = '';
         
-        if (typeof part === 'string' && part.trim()) {
-          // Skip responses that seem to be metadata or tracking info
-          if (part.includes('CLARIFICATION_NEEDED') || 
-              part.includes('Medical Entities Tracked') ||
-              part.includes('**Clarifying Questions:**') ||
-              part.includes('**Medical Entities Tracked:**') ||
-              part.trim() === '[]' ||
-              part.trim() === '""') {
-            continue;
-          }
+        for (let i = 0; i < rawResponse.length; i++) {
+          let part = rawResponse[i];
           
-          // Add the part to combined response
-          if (combinedResponse) {
-            combinedResponse += '\n\n';
+          if (typeof part === 'string' && part.trim()) {
+            // Skip responses that seem to be metadata or tracking info
+            if (part.includes('CLARIFICATION_NEEDED') || 
+                part.includes('Medical Entities Tracked') ||
+                part.includes('**Clarifying Questions:**') ||
+                part.includes('**Medical Entities Tracked:**') ||
+                part.trim() === '[]' ||
+                part.trim() === '""') {
+              continue;
+            }
+            
+            // Add the part to combined response
+            if (combinedResponse) {
+              combinedResponse += '\n\n';
+            }
+            combinedResponse += part.trim();
           }
-          combinedResponse += part.trim();
+        }
+        
+        if (combinedResponse.trim()) {
+          return combinedResponse.trim();
+        } else {
+          return 'I received your message but need more information to provide a helpful response. Could you please provide more details about your health concern?';
+        }
+      }
+
+      // Try to stringify if it's an object
+      if (typeof rawResponse === 'object') {
+        return JSON.stringify(rawResponse, null, 2);
+      }
+
+      return String(rawResponse);
+      
+    } catch (error) {
+      return 'I apologize, but there was an issue processing the response. Please try again.';
+    }
+  };
+
+  // Simplified and improved API call function
+  let callMedicalAPI = async (userQuery, healthProfile, sessionId) => {
+    try {
+      // First API call to initiate prediction
+      let initiateResponse = await fetch('https://rishi002-medivedallm.hf.space/gradio_api/call/predict', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          data: [userQuery, healthProfile, sessionId]
+        })
+      });
+
+      if (!initiateResponse.ok) {
+        throw new Error(`HTTP error! status: ${initiateResponse.status}`);
+      }
+
+      let initiateData = await initiateResponse.text();
+      
+      // Extract event ID from response
+      let eventId = null;
+      
+      try {
+        let jsonData = JSON.parse(initiateData);
+        eventId = jsonData.event_id;
+      } catch (e) {
+        // Fallback regex extraction
+        let eventIdMatch = initiateData.match(/"event_id":\s*"([^"]+)"/);
+        if (eventIdMatch) {
+          eventId = eventIdMatch[1];
         }
       }
       
-      if (combinedResponse.trim()) {
-        return combinedResponse.trim();
-      } else {
-        return 'I received your message but need more information to provide a helpful response. Could you please provide more details about your health concern?';
+      if (!eventId) {
+        throw new Error('Could not extract event ID from response: ' + initiateData);
       }
-    }
 
-    // Try to stringify if it's an object
-    if (typeof rawResponse === 'object') {
-      return JSON.stringify(rawResponse, null, 2);
-    }
+      // Wait before making the second call
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
-    return String(rawResponse);
-    
-  } catch (error) {
-    
-    return 'I apologize, but there was an issue processing the response. Please try again.';
-  }
-};
+      // Second API call to get the result
+      let resultResponse = await fetch(`https://rishi002-medivedallm.hf.space/gradio_api/call/predict/${eventId}`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'text/event-stream',
+        }
+      });
 
-  // Simplified and improved API call function
-// Simplified and improved API call function
-let callMedicalAPI = async (userQuery, healthProfile, sessionId) => {
-  try {
-    
-    
-    // First API call to initiate prediction
-    let initiateResponse = await fetch('https://rishi002-medivedallm.hf.space/gradio_api/call/predict', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        data: [userQuery, healthProfile, sessionId]
-      })
-    });
-
-    
-
-    if (!initiateResponse.ok) {
-      throw new Error(`HTTP error! status: ${initiateResponse.status}`);
-    }
-
-    let initiateData = await initiateResponse.text();
-   
-    
-    // Extract event ID from response
-    let eventId = null;
-    
-    try {
-      let jsonData = JSON.parse(initiateData);
-      eventId = jsonData.event_id;
-    } catch (e) {
-      // Fallback regex extraction
-      let eventIdMatch = initiateData.match(/"event_id":\s*"([^"]+)"/);
-      if (eventIdMatch) {
-        eventId = eventIdMatch[1];
+      if (!resultResponse.ok) {
+        throw new Error(`HTTP error! status: ${resultResponse.status}`);
       }
-    }
-    
-    
-    
-    if (!eventId) {
-      throw new Error('Could not extract event ID from response: ' + initiateData);
-    }
 
-    // Wait before making the second call
-    await new Promise(resolve => setTimeout(resolve, 2000));
+      // Read the streaming response
+      let reader = resultResponse.body.getReader();
+      let decoder = new TextDecoder();
+      let allChunks = '';
+      let finalResponse = null;
 
-    // Second API call to get the result
-    let resultResponse = await fetch(`https://rishi002-medivedallm.hf.space/gradio_api/call/predict/${eventId}`, {
-      method: 'GET',
-      headers: {
-        'Accept': 'text/event-stream',
-      }
-    });
-
-    
-
-    if (!resultResponse.ok) {
-      throw new Error(`HTTP error! status: ${resultResponse.status}`);
-    }
-
-    // Read the streaming response
-    let reader = resultResponse.body.getReader();
-    let decoder = new TextDecoder();
-    let allChunks = '';
-    let finalResponse = null;
-
-    while (true) {
-      let { done, value } = await reader.read();
-      
-      if (done) break;
-      
-      let chunk = decoder.decode(value, { stream: true });
-      allChunks += chunk;
-     
-    }
-
-   
-
-    // Parse the streaming response more effectively
-    let lines = allChunks.split('\n');
-    
-    for (let line of lines) {
-      let trimmedLine = line.trim();
-      
-      // Skip empty lines and status messages
-      if (!trimmedLine || trimmedLine === '[DONE]') {
-        continue;
-      }
-      
-      // Handle "data: " prefixed lines - THIS IS THE KEY FIX
-      if (trimmedLine.startsWith('data: ')) {
-        let dataContent = trimmedLine.substring(6).trim();
+      while (true) {
+        let { done, value } = await reader.read();
         
-        // Skip empty data lines
-        if (!dataContent || dataContent === '[DONE]') {
+        if (done) break;
+        
+        let chunk = decoder.decode(value, { stream: true });
+        allChunks += chunk;
+      }
+
+      // Parse the streaming response more effectively
+      let lines = allChunks.split('\n');
+      
+      for (let line of lines) {
+        let trimmedLine = line.trim();
+        
+        // Skip empty lines and status messages
+        if (!trimmedLine || trimmedLine === '[DONE]') {
           continue;
         }
         
-        try {
-          // Try to parse as JSON array directly
-          let parsed = JSON.parse(dataContent);
-        
+        // Handle "data: " prefixed lines - THIS IS THE KEY FIX
+        if (trimmedLine.startsWith('data: ')) {
+          let dataContent = trimmedLine.substring(6).trim();
           
-          // If it's an array and has content, use it
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            finalResponse = parsed;
+          // Skip empty data lines
+          if (!dataContent || dataContent === '[DONE]') {
+            continue;
+          }
+          
+          try {
+            // Try to parse as JSON array directly
+            let parsed = JSON.parse(dataContent);
             
+            // If it's an array and has content, use it
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              finalResponse = parsed;
+              break;
+            }
+            
+          } catch (parseError) {
+            // Continue if parse error
+          }
+          continue;
+        }
+        
+        // Handle other JSON responses
+        try {
+          let parsed = JSON.parse(trimmedLine);
+          
+          // Check for completion message with output
+          if (parsed.msg === 'process_completed' && parsed.output && parsed.output.data) {
+            if (Array.isArray(parsed.output.data) && parsed.output.data.length > 0) {
+              finalResponse = parsed.output.data;
+              break;
+            }
+          }
+          
+          // Check for data array responses
+          if (parsed.data && Array.isArray(parsed.data) && parsed.data.length > 0) {
+            finalResponse = parsed.data;
             break;
           }
           
         } catch (parseError) {
-        
-        }
-        continue;
-      }
-      
-      // Handle other JSON responses
-      try {
-        let parsed = JSON.parse(trimmedLine);
-      
-        
-        // Check for completion message with output
-        if (parsed.msg === 'process_completed' && parsed.output && parsed.output.data) {
-          if (Array.isArray(parsed.output.data) && parsed.output.data.length > 0) {
-            finalResponse = parsed.output.data;
-            
-            break;
-          }
-        }
-        
-        // Check for data array responses
-        if (parsed.data && Array.isArray(parsed.data) && parsed.data.length > 0) {
-          finalResponse = parsed.data;
-          
-          break;
-        }
-        
-      } catch (parseError) {
-   
-        
-        // If it's not JSON and looks like a direct text response, try to parse as array
-        if (trimmedLine.startsWith('[') && trimmedLine.endsWith(']')) {
-          try {
-            finalResponse = JSON.parse(trimmedLine);
-            
-            break;
-          } catch (e) {
-            
+          // If it's not JSON and looks like a direct text response, try to parse as array
+          if (trimmedLine.startsWith('[') && trimmedLine.endsWith(']')) {
+            try {
+              finalResponse = JSON.parse(trimmedLine);
+              break;
+            } catch (e) {
+              // Continue if parse error
+            }
           }
         }
       }
+
+      if (!finalResponse) {
+        return 'I received a response from the medical service, but it appears to be empty. Please try rephrasing your question or ask something more specific.';
+      }
+
+      // Process the response using the new function
+      return processAPIResponse(finalResponse);
+      
+    } catch (error) {
+      return `I apologize, but I'm currently unable to connect to the medical service. Error: ${error.message}. Please check your internet connection and try again.`;
     }
+  };
 
-    
-
-    if (!finalResponse) {
-   
-      return 'I received a response from the medical service, but it appears to be empty. Please try rephrasing your question or ask something more specific.';
-    }
-
-    // Process the response using the new function
-    return processAPIResponse(finalResponse);
-    
-  } catch (error) {
-    
-    return `I apologize, but I'm currently unable to connect to the medical service. Error: ${error.message}. Please check your internet connection and try again.`;
-  }
-};
   // Send message function with API integration
   let sendMessage = async () => {
     if (!userInput.trim() || isLoading) return;
@@ -464,12 +575,8 @@ let callMedicalAPI = async (userQuery, healthProfile, sessionId) => {
     setMessages(prev => [...prev, newUserMessage]);
 
     try {
-      
-      
-      // Call the medical API
-      let apiResponse = await callMedicalAPI(currentInput, healthProfile, sessionId);
-      
-      
+      // Call the medical API with the actual user's health profile
+      let apiResponse = await callMedicalAPI(currentInput, userHealthProfile, sessionId);
       
       let botResponse = {
         sender: "bot",
@@ -479,9 +586,8 @@ let callMedicalAPI = async (userQuery, healthProfile, sessionId) => {
       
       setMessages(prev => [...prev, botResponse]);
       
-      
     } catch (error) {
-   
+      console.error('Error in sendMessage:', error);
       
       // Fallback response in case of error
       let errorResponse = {
@@ -493,7 +599,6 @@ let callMedicalAPI = async (userQuery, healthProfile, sessionId) => {
       setMessages(prev => [...prev, errorResponse]);
     } finally {
       setIsLoading(false);
-      
     }
   };
 
@@ -526,7 +631,8 @@ let callMedicalAPI = async (userQuery, healthProfile, sessionId) => {
                 Your Personal Healthcare Companion
                 {isLoadingProfile && <span> • Loading your profile...</span>}
                 {!isLoadingProfile && medicalProfile && <span> • Profile loaded ✓</span>}
-                {!isLoadingProfile && !medicalProfile && <span> • Complete your profile for personalized care</span>}
+                {!isLoadingProfile && !medicalProfile && currentUser && <span> • Complete your profile for personalized care</span>}
+                {!isLoadingProfile && !currentUser && <span> • Please log in for personalized assistance</span>}
               </div>
             </div>
             <div style={styles.statusIndicator}>
@@ -534,6 +640,25 @@ let callMedicalAPI = async (userQuery, healthProfile, sessionId) => {
               <span>Online</span>
             </div>
           </div>
+          
+          {/* Profile actions */}
+          {!isLoadingProfile && !medicalProfile && currentUser && (
+            <div style={styles.profilePrompt}>
+              <span>📋 No medical profile found. </span>
+              <button 
+                onClick={refreshUserProfile}
+                style={styles.refreshButton}
+              >
+                Refresh Profile
+              </button>
+            </div>
+          )}
+          
+          {!currentUser && !isLoadingProfile && (
+            <div style={styles.profilePrompt}>
+              <span>🔐 Please log in to access personalized medical assistance.</span>
+            </div>
+          )}
         </div>
         
         <div style={styles.chatbox} ref={chatboxRef}>
