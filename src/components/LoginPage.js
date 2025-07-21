@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
-import { signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
+import { signInWithEmailAndPassword, sendPasswordResetEmail, signOut } from "firebase/auth";
 import { auth, db } from "../firebase";
 import { doc, getDoc } from "firebase/firestore";
 import { FaUser, FaLock, FaTimes } from "react-icons/fa";
@@ -37,6 +37,8 @@ const LoginPage = () => {
 
       if (!user.emailVerified) {
         setError("Please verify your email before logging in.");
+        // Sign out the user since email is not verified
+        await signOut(auth);
         setLoading(false);
         return;
       }
@@ -48,6 +50,8 @@ const LoginPage = () => {
         const userSnap = await getDoc(userRef);
         if (!userSnap.exists()) {
           setError("Patient account not found. Please sign up.");
+          // Sign out the user since they're not the correct user type
+          await signOut(auth);
           setLoading(false);
           return;
         }
@@ -59,20 +63,24 @@ const LoginPage = () => {
         if (doctorSnap.exists()) {
           navigate("/doctor-dashboard");
         } else {
+          // Check if they have a pending/rejected application
           const tempRef = doc(db, "tempDoctorSignups", uid);
           const tempSnap = await getDoc(tempRef);
           if (tempSnap.exists()) {
             const status = tempSnap.data().status;
-            setError(
+            const errorMessage = 
               status === "pending"
-                ? "Doctor application is under review."
+                ? "Doctor application is under review. You cannot access services until approved."
                 : status === "rejected"
-                ? "Doctor application was rejected."
-                : "Doctor account not approved yet."
-            );
+                ? "Doctor application was rejected. Please contact support."
+                : "Doctor account not approved yet. You cannot access services until approved.";
+            
+            setError(errorMessage);
           } else {
-            setError("No doctor account found.");
+            setError("No doctor account found. Please sign up as a doctor first.");
           }
+          // Sign out the user since they're not approved or don't have correct account type
+          await signOut(auth);
           setLoading(false);
           return;
         }
@@ -83,20 +91,24 @@ const LoginPage = () => {
         if (hospSnap.exists()) {
           navigate("/hospital-dashboard");
         } else {
+          // Check if they have a pending/rejected application
           const tempRef = doc(db, "tempHospitalSignups", uid);
           const tempSnap = await getDoc(tempRef);
           if (tempSnap.exists()) {
             const status = tempSnap.data().status;
-            setError(
+            const errorMessage = 
               status === "pending"
-                ? "Hospital application is under review."
+                ? "Hospital application is under review. You cannot access services until approved."
                 : status === "rejected"
-                ? "Hospital application was rejected."
-                : "Hospital account not approved yet."
-            );
+                ? "Hospital application was rejected. Please contact support."
+                : "Hospital account not approved yet. You cannot access services until approved.";
+            
+            setError(errorMessage);
           } else {
-            setError("No hospital account found.");
+            setError("No hospital account found. Please sign up as a hospital first.");
           }
+          // Sign out the user since they're not approved or don't have correct account type
+          await signOut(auth);
           setLoading(false);
           return;
         }
