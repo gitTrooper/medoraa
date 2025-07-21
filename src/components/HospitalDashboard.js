@@ -470,24 +470,24 @@ const HospitalDashboard = () => {
 
   return (
     <div className="dashboard">
-      <nav className="navbar">
-        <div className="navbar-content">
-          <div className="navbar-brand">
-            <div className="navbar-icon-wrapper">
-              <Activity className="navbar-icon" />
+      <nav className="navbar1">
+        <div className="navbar1-content">
+          <div className="navbar1-brand">
+            <div className="navbar1-icon-wrapper">
+              <Activity className="navbar1-icon" />
             </div>
             <div>
-              <h1 className="navbar-title">{hospitalInfo.name || 'Medora Hospital'}</h1>
-              <p className="navbar-subtitle">Healthcare Management System</p>
+              <h1 className="navbar1-title">{hospitalInfo.name || 'Medora Hospital'}</h1>
+              <p className="navbar1-subtitle">Healthcare Management System</p>
             </div>
           </div>
-          <div className="navbar-actions">
-            <button onClick={() => toggleModal('profile', true)} className="navbar-btn">
-              <User className="navbar-btn-icon" />
+          <div className="navbar1-actions">
+            <button onClick={() => toggleModal('profile', true)} className="navbar1-btn">
+              <User className="navbar1-btn-icon" />
               <span>Profile</span>
             </button>
-            <button onClick={handleLogout} disabled={isLoggingOut} className="navbar-btn">
-              <LogOut className="navbar-btn-icon" />
+            <button onClick={handleLogout} disabled={isLoggingOut} className="navbar1-btn">
+              <LogOut className="navbar1-btn-icon" />
               <span>{isLoggingOut ? 'Logging out...' : 'Logout'}</span>
             </button>
           </div>
