@@ -1,20 +1,32 @@
 import React, { useState, useRef, useEffect } from "react";
 import NavigationBar from './NavigationBar';
 
-
 const Chatbot = () => {
-  const [messages, setMessages] = useState([
+  let [messages, setMessages] = useState([
     {
       sender: "bot",
       text: "Hello! I'm your Medoraa AI Health Assistant. How can I help you with your health concerns today?",
       timestamp: new Date().toISOString()
     }
   ]);
-  const [userInput, setUserInput] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [isLoadingProfile, setIsLoadingProfile] = useState(false);
-  const chatboxRef = useRef(null);
-  const [medicalProfile, setMedicalProfile] = useState(true); // Mock profile loaded
+  let [userInput, setUserInput] = useState("");
+  let [isLoading, setIsLoading] = useState(false);
+  let [isLoadingProfile, setIsLoadingProfile] = useState(false);
+  let chatboxRef = useRef(null);
+  let [medicalProfile, setMedicalProfile] = useState(true);
+  let [sessionId] = useState(() => `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
+  
+  // Mock medical profile data - replace with actual user data
+  let healthProfile = `
+    Age: 28
+    Gender: Female
+    Medical History: Hypertension, Seasonal allergies
+    Current Medications: Lisinopril 10mg daily, Claritin as needed
+    Allergies: Penicillin
+    Recent Symptoms: Mild fatigue, occasional headaches
+    Lifestyle: Regular exercise 3x/week, Non-smoker, Occasional alcohol consumption
+    Family History: Heart disease (father), Diabetes (mother)
+  `.trim();
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -23,32 +35,427 @@ const Chatbot = () => {
     }
   }, [messages]);
 
-  // Format bot messages for better readability
-  const formatBotMessage = (text) => {
-    if (!text) return text;
+  // Enhanced message formatting function with improved medical response structure
+  let formatBotMessage = (text) => {
+    if (!text || typeof text !== 'string') return text;
     
-    let formattedText = text
-      .replace(/(\. )(?=[A-Z])/g, '.\n\n')
-      .replace(/(\? )(?=[A-Z])/g, '?\n\n')
-      .replace(/(Based on|According to)/g, '\n\n$1')
-      .replace(/(Over-the-counter|The documents suggest|Since you are)/g, '\n\n$1')
-      .replace(/(If your|It's important)/g, '\n\n$1')
+    // Clean up the text first
+    let cleanText = text
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
       .replace(/\n{3,}/g, '\n\n')
+      .replace(/#+\s*(.*)/g, '<strong>$1</strong>')
       .trim();
 
-    return formattedText;
+    // Enhanced section detection for medical responses
+    let sections = [];
+    let currentSection = '';
+    let currentType = 'paragraph';
+    
+    let lines = cleanText.split('\n');
+    
+    for (let i = 0; i < lines.length; i++) {
+      let line = lines[i].trim();
+      
+      if (!line) {
+        if (currentSection.trim()) {
+          sections.push({ type: currentType, content: currentSection.trim() });
+          currentSection = '';
+          currentType = 'paragraph';
+        }
+        continue;
+      }
+      
+      // Enhanced header detection for medical terms
+      if (line.match(/^(symptoms?|causes?|treatment|recommendations?|diagnosis|prevention|when to see|important|note|warning|disclaimer|overview|summary|conclusion|prognosis|complications|risk factors?|differential diagnosis|management|follow[- ]?up|medication|dosage|side effects?|contraindications?|precautions?|clarifying questions?):/i)) {
+        if (currentSection.trim()) {
+          sections.push({ type: currentType, content: currentSection.trim() });
+        }
+        sections.push({ type: 'medical-header', content: line });
+        currentSection = '';
+        currentType = 'paragraph';
+      }
+      // Detect numbered medical lists
+      else if (line.match(/^\d+[\.)]\s/)) {
+        if (currentSection.trim() && currentType !== 'numbered-list') {
+          sections.push({ type: currentType, content: currentSection.trim() });
+          currentSection = '';
+        }
+        currentType = 'numbered-list';
+        currentSection += line + '\n';
+      }
+      // Detect bullet points with various markers
+      else if (line.match(/^[-•*▪▫◦‣⁃]\s/)) {
+        if (currentSection.trim() && currentType !== 'bullet-list') {
+          sections.push({ type: currentType, content: currentSection.trim() });
+          currentSection = '';
+        }
+        currentType = 'bullet-list';
+        currentSection += line + '\n';
+      }
+      // Detect emergency/warning markers
+      else if (line.match(/^(⚠️|🚨|❗|URGENT|EMERGENCY|WARNING|CRITICAL)/i)) {
+        if (currentSection.trim()) {
+          sections.push({ type: currentType, content: currentSection.trim() });
+        }
+        sections.push({ type: 'warning', content: line });
+        currentSection = '';
+        currentType = 'paragraph';
+      }
+      // Detect medical quotes or important notes
+      else if (line.match(/^[""].*[""]$/) || line.match(/^Note:/i) || line.match(/^Important:/i)) {
+        if (currentSection.trim()) {
+          sections.push({ type: currentType, content: currentSection.trim() });
+        }
+        sections.push({ type: 'highlight', content: line });
+        currentSection = '';
+        currentType = 'paragraph';
+      }
+      // Regular text
+      else {
+        if (currentType === 'numbered-list' || currentType === 'bullet-list') {
+          // Continue with list if it's a continuation line
+          if (line.match(/^\s/) || !line.match(/^[a-zA-Z]/)) {
+            currentSection += line + '\n';
+            continue;
+          } else {
+            // End list and start new paragraph
+            sections.push({ type: currentType, content: currentSection.trim() });
+            currentSection = '';
+            currentType = 'paragraph';
+          }
+        }
+        currentSection += (currentSection ? ' ' : '') + line;
+      }
+    }
+    
+    // Add remaining content
+    if (currentSection.trim()) {
+      sections.push({ type: currentType, content: currentSection.trim() });
+    }
+    
+    return sections.length > 0 ? sections : [{ type: 'paragraph', content: cleanText }];
   };
 
-  // Mock send message function
-  const sendMessage = async () => {
+  // Enhanced render function with improved medical styling
+  let renderFormattedMessage = (sections) => {
+    return sections.map((section, index) => {
+      switch (section.type) {
+        case 'medical-header':
+          return (
+            <div key={index} style={styles.medicalHeader}>
+              <div style={styles.headerIcon}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                  <path d="M9 12l2 2 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
+                </svg>
+              </div>
+              <span dangerouslySetInnerHTML={{ __html: section.content }} />
+            </div>
+          );
+        
+        case 'numbered-list':
+          let numberedItems = section.content.split('\n').filter(item => item.trim());
+          return (
+            <div key={index} style={styles.medicalList}>
+              {numberedItems.map((item, itemIndex) => (
+                <div key={itemIndex} style={styles.medicalListItem}>
+                  <div style={styles.listNumber}>{itemIndex + 1}</div>
+                  <div style={styles.medicalListContent}>
+                    <span dangerouslySetInnerHTML={{ __html: item.replace(/^\d+[\.)]\s*/, '') }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          );
+        
+        case 'bullet-list':
+          let bulletItems = section.content.split('\n').filter(item => item.trim());
+          return (
+            <div key={index} style={styles.medicalList}>
+              {bulletItems.map((item, itemIndex) => (
+                <div key={itemIndex} style={styles.medicalListItem}>
+                  <div style={styles.medicalBullet}>
+                    <svg width="8" height="8" viewBox="0 0 24 24" fill="none">
+                      <circle cx="12" cy="12" r="3" fill="currentColor"/>
+                    </svg>
+                  </div>
+                  <div style={styles.medicalListContent}>
+                    <span dangerouslySetInnerHTML={{ __html: item.replace(/^[-•*▪▫◦‣⁃]\s*/, '') }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          );
+        
+        case 'warning':
+          return (
+            <div key={index} style={styles.warningMessage}>
+              <div style={styles.warningIcon}>⚠️</div>
+              <span dangerouslySetInnerHTML={{ __html: section.content }} />
+            </div>
+          );
+        
+        case 'highlight':
+          return (
+            <div key={index} style={styles.highlightMessage}>
+              <div style={styles.highlightIcon}>💡</div>
+              <span dangerouslySetInnerHTML={{ __html: section.content.replace(/^(Note:|Important:)/i, '') }} />
+            </div>
+          );
+        
+        default:
+          return (
+            <div key={index} style={styles.messageParagraph}>
+              <span dangerouslySetInnerHTML={{ __html: section.content }} />
+            </div>
+          );
+      }
+    });
+  };
+
+  // Process API response to handle array format and combine multiple parts
+  // Process API response to handle array format and combine multiple parts
+let processAPIResponse = (rawResponse) => {
+ 
+  
+  if (!rawResponse) {
+    return 'I apologize, but I didn\'t receive a proper response. Please try again.';
+  }
+
+  try {
+    // If it's already a string, return it
+    if (typeof rawResponse === 'string') {
+      return rawResponse.trim();
+    }
+
+    // If it's an array, process each element
+    if (Array.isArray(rawResponse)) {
+      let combinedResponse = '';
+      
+      for (let i = 0; i < rawResponse.length; i++) {
+        let part = rawResponse[i];
+        
+        if (typeof part === 'string' && part.trim()) {
+          // Skip responses that seem to be metadata or tracking info
+          if (part.includes('CLARIFICATION_NEEDED') || 
+              part.includes('Medical Entities Tracked') ||
+              part.includes('**Clarifying Questions:**') ||
+              part.includes('**Medical Entities Tracked:**') ||
+              part.trim() === '[]' ||
+              part.trim() === '""') {
+            continue;
+          }
+          
+          // Add the part to combined response
+          if (combinedResponse) {
+            combinedResponse += '\n\n';
+          }
+          combinedResponse += part.trim();
+        }
+      }
+      
+      if (combinedResponse.trim()) {
+        return combinedResponse.trim();
+      } else {
+        return 'I received your message but need more information to provide a helpful response. Could you please provide more details about your health concern?';
+      }
+    }
+
+    // Try to stringify if it's an object
+    if (typeof rawResponse === 'object') {
+      return JSON.stringify(rawResponse, null, 2);
+    }
+
+    return String(rawResponse);
+    
+  } catch (error) {
+    
+    return 'I apologize, but there was an issue processing the response. Please try again.';
+  }
+};
+
+  // Simplified and improved API call function
+// Simplified and improved API call function
+let callMedicalAPI = async (userQuery, healthProfile, sessionId) => {
+  try {
+    
+    
+    // First API call to initiate prediction
+    let initiateResponse = await fetch('https://rishi002-medivedallm.hf.space/gradio_api/call/predict', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        data: [userQuery, healthProfile, sessionId]
+      })
+    });
+
+    
+
+    if (!initiateResponse.ok) {
+      throw new Error(`HTTP error! status: ${initiateResponse.status}`);
+    }
+
+    let initiateData = await initiateResponse.text();
+   
+    
+    // Extract event ID from response
+    let eventId = null;
+    
+    try {
+      let jsonData = JSON.parse(initiateData);
+      eventId = jsonData.event_id;
+    } catch (e) {
+      // Fallback regex extraction
+      let eventIdMatch = initiateData.match(/"event_id":\s*"([^"]+)"/);
+      if (eventIdMatch) {
+        eventId = eventIdMatch[1];
+      }
+    }
+    
+    
+    
+    if (!eventId) {
+      throw new Error('Could not extract event ID from response: ' + initiateData);
+    }
+
+    // Wait before making the second call
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    // Second API call to get the result
+    let resultResponse = await fetch(`https://rishi002-medivedallm.hf.space/gradio_api/call/predict/${eventId}`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'text/event-stream',
+      }
+    });
+
+    
+
+    if (!resultResponse.ok) {
+      throw new Error(`HTTP error! status: ${resultResponse.status}`);
+    }
+
+    // Read the streaming response
+    let reader = resultResponse.body.getReader();
+    let decoder = new TextDecoder();
+    let allChunks = '';
+    let finalResponse = null;
+
+    while (true) {
+      let { done, value } = await reader.read();
+      
+      if (done) break;
+      
+      let chunk = decoder.decode(value, { stream: true });
+      allChunks += chunk;
+     
+    }
+
+   
+
+    // Parse the streaming response more effectively
+    let lines = allChunks.split('\n');
+    
+    for (let line of lines) {
+      let trimmedLine = line.trim();
+      
+      // Skip empty lines and status messages
+      if (!trimmedLine || trimmedLine === '[DONE]') {
+        continue;
+      }
+      
+      // Handle "data: " prefixed lines - THIS IS THE KEY FIX
+      if (trimmedLine.startsWith('data: ')) {
+        let dataContent = trimmedLine.substring(6).trim();
+        
+        // Skip empty data lines
+        if (!dataContent || dataContent === '[DONE]') {
+          continue;
+        }
+        
+        try {
+          // Try to parse as JSON array directly
+          let parsed = JSON.parse(dataContent);
+        
+          
+          // If it's an array and has content, use it
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            finalResponse = parsed;
+            
+            break;
+          }
+          
+        } catch (parseError) {
+        
+        }
+        continue;
+      }
+      
+      // Handle other JSON responses
+      try {
+        let parsed = JSON.parse(trimmedLine);
+      
+        
+        // Check for completion message with output
+        if (parsed.msg === 'process_completed' && parsed.output && parsed.output.data) {
+          if (Array.isArray(parsed.output.data) && parsed.output.data.length > 0) {
+            finalResponse = parsed.output.data;
+            
+            break;
+          }
+        }
+        
+        // Check for data array responses
+        if (parsed.data && Array.isArray(parsed.data) && parsed.data.length > 0) {
+          finalResponse = parsed.data;
+          
+          break;
+        }
+        
+      } catch (parseError) {
+   
+        
+        // If it's not JSON and looks like a direct text response, try to parse as array
+        if (trimmedLine.startsWith('[') && trimmedLine.endsWith(']')) {
+          try {
+            finalResponse = JSON.parse(trimmedLine);
+            
+            break;
+          } catch (e) {
+            
+          }
+        }
+      }
+    }
+
+    
+
+    if (!finalResponse) {
+   
+      return 'I received a response from the medical service, but it appears to be empty. Please try rephrasing your question or ask something more specific.';
+    }
+
+    // Process the response using the new function
+    return processAPIResponse(finalResponse);
+    
+  } catch (error) {
+    
+    return `I apologize, but I'm currently unable to connect to the medical service. Error: ${error.message}. Please check your internet connection and try again.`;
+  }
+};
+  // Send message function with API integration
+  let sendMessage = async () => {
     if (!userInput.trim() || isLoading) return;
 
-    const currentInput = userInput.trim();
+    let currentInput = userInput.trim();
     setUserInput("");
     setIsLoading(true);
 
     // Add user message
-    const newUserMessage = {
+    let newUserMessage = {
       sender: "user",
       text: currentInput,
       timestamp: new Date().toISOString()
@@ -56,20 +463,41 @@ const Chatbot = () => {
     
     setMessages(prev => [...prev, newUserMessage]);
 
-    // Simulate API response
-    setTimeout(() => {
-      const botResponse = {
+    try {
+      
+      
+      // Call the medical API
+      let apiResponse = await callMedicalAPI(currentInput, healthProfile, sessionId);
+      
+      
+      
+      let botResponse = {
         sender: "bot",
-        text: "Thank you for your question. Based on your medical profile and symptoms, I recommend the following:\n\nFirst, it's important to monitor your symptoms closely. If you're experiencing persistent discomfort, consider scheduling an appointment with your healthcare provider.\n\nIn the meantime, you can try some over-the-counter remedies and ensure you're staying well-hydrated. Remember to rest and avoid strenuous activities until you feel better.\n\nIf your symptoms worsen or you develop a fever, please seek immediate medical attention.",
+        text: apiResponse,
         timestamp: new Date().toISOString()
       };
       
       setMessages(prev => [...prev, botResponse]);
+      
+      
+    } catch (error) {
+   
+      
+      // Fallback response in case of error
+      let errorResponse = {
+        sender: "bot",
+        text: "I apologize, but I'm currently experiencing technical difficulties. Please try again in a moment. If the issue persists, please contact our support team.",
+        timestamp: new Date().toISOString()
+      };
+      
+      setMessages(prev => [...prev, errorResponse]);
+    } finally {
       setIsLoading(false);
-    }, 2000);
+      
+    }
   };
 
-  const handleKeyPress = (e) => {
+  let handleKeyPress = (e) => {
     if (e.key === "Enter" && userInput.trim() && !isLoading) {
       sendMessage();
     }
@@ -126,11 +554,7 @@ const Chatbot = () => {
               <div style={msg.sender === "user" ? styles.userMessageContent : styles.botMessageContent}>
                 {msg.sender === "bot" ? (
                   <div style={styles.formattedMessage}>
-                    {formatBotMessage(msg.text).split('\n\n').map((paragraph, pIndex) => (
-                      <p key={pIndex} style={styles.messageParagraph}>
-                        {paragraph}
-                      </p>
-                    ))}
+                    {renderFormattedMessage(formatBotMessage(msg.text))}
                   </div>
                 ) : (
                   msg.text
@@ -209,7 +633,7 @@ const Chatbot = () => {
   );
 };
 
-const styles = {
+let styles = {
   pageContainer: {
     display: "flex",
     justifyContent: "center",
