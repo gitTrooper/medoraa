@@ -1,9 +1,10 @@
-import { getAuth, onAuthStateChanged } from "firebase/auth";
+import { getAuth, onAuthStateChanged, signOut } from "firebase/auth";
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
   User, Heart, Settings, CreditCard, MapPin, Calendar, 
-  Phone, Mail, Edit3, Camera, Save, X, Loader2, AlertCircle 
+  Phone, Mail, Edit3, Camera, Save, X, Loader2, AlertCircle, LogOut 
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom'; // Import useNavigate
 import '../styles/UserMyProfilePage.css';
 import { collection, doc, setDoc, addDoc, serverTimestamp, getDoc } from "firebase/firestore";
 import { db } from "../firebase";
@@ -68,6 +69,8 @@ const UserMyProfilePage = () => {
   const [error, setError] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   
+  const navigate = useNavigate(); // Initialize useNavigate hook
+
   const [userData, setUserData] = useState({
     // Personal Data
     name: '', email: '', phone: '', city: '', pincode: '', location: null, emergencyContact: '', address: '',
@@ -181,6 +184,8 @@ const UserMyProfilePage = () => {
       } else {
         setCurrentUser(null);
         setLoading(false);
+        // Optionally redirect to landing page if user logs out from another tab/window
+        // navigate('/'); 
       }
     });
 
@@ -193,13 +198,25 @@ const UserMyProfilePage = () => {
       const userDocRef = doc(db, 'users', userId);
       const userDocSnap = await getDoc(userDocRef);
       
+      let combinedData = {};
+
       if (userDocSnap.exists()) {
-        const existingData = userDocSnap.data();
-        setUserData(prev => ({
-          ...prev,
-          ...existingData
-        }));
+        combinedData = userDocSnap.data();
       }
+
+      // Also load medical data from the subcollection
+      const medicalDocRef = doc(db, 'users', userId, 'medicalData', 'medical profile');
+      const medicalDocSnap = await getDoc(medicalDocRef);
+
+      if (medicalDocSnap.exists()) {
+        combinedData = { ...combinedData, ...medicalDocSnap.data() };
+      }
+      
+      setUserData(prev => ({
+        ...prev,
+        ...combinedData
+      }));
+
     } catch (error) {
       console.error('Error loading user data:', error);
       setError('Failed to load user data: ' + error.message);
@@ -301,6 +318,18 @@ const UserMyProfilePage = () => {
     setUpdating(false);
   };
 
+  const handleLogout = async () => {
+    try {
+      const auth = getAuth();
+      await signOut(auth);
+      console.log('User logged out successfully');
+      navigate('/'); // Redirect to the main landing page
+    } catch (error) {
+      console.error('Error logging out:', error);
+      setError('Failed to log out: ' + error.message);
+    }
+  };
+
   const renderFormSection = (fields, isEditing) => (
     <div className="ump-form-grid">
       {fields.map(({ field, label, icon: Icon, type, options, rows, placeholder }) => (
@@ -368,7 +397,6 @@ const UserMyProfilePage = () => {
           <TabButton id="personal" label="Personal Info" icon={User} activeTab={activeTab} onClick={handleTabChange} />
           <TabButton id="medical" label="Medical Info" icon={Heart} activeTab={activeTab} onClick={handleTabChange} />
           <TabButton id="settings" label="Settings" icon={Settings} activeTab={activeTab} onClick={handleTabChange} />
-          <TabButton id="subscription" label="AI Features" icon={CreditCard} activeTab={activeTab} onClick={handleTabChange} />
         </nav>
 
         <section className="ump-content-card">
@@ -449,6 +477,26 @@ const UserMyProfilePage = () => {
                   </button>
                 </div>
               )}
+            </div>
+          )}
+
+          {activeTab === 'settings' && (
+            <div className="ump-section">
+              <div className="ump-section-header">
+                <h2>Settings</h2>
+              </div>
+              <p>Manage your account settings and preferences here.</p>
+              <div className="ump-settings-actions">                
+                {/* Logout Button */}
+                <button 
+                  type="button" 
+                  onClick={handleLogout} 
+                  className="ump-btn btn-danger ump-logout-button" // Add a class for styling if needed
+                >
+                  <LogOut size={16} />
+                  <span>Logout</span>
+                </button>
+              </div>
             </div>
           )}
         </section>
