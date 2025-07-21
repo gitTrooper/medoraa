@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
-import { signInWithEmailAndPassword, sendPasswordResetEmail, signOut } from "firebase/auth";
+import { signInWithEmailAndPassword, sendPasswordResetEmail, signOut, onAuthStateChanged } from "firebase/auth";
 import { auth, db } from "../firebase";
 import { doc, getDoc } from "firebase/firestore";
 import { FaUser, FaLock, FaTimes } from "react-icons/fa";
@@ -24,6 +24,16 @@ const LoginPage = () => {
     if (location.state?.message) {
       setError(location.state.message);
     }
+
+    // Monitor auth state and ensure unverified users are signed out
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user && !user.emailVerified) {
+        // Force sign out unverified users
+        await signOut(auth);
+      }
+    });
+
+    return () => unsubscribe();
   }, [location]);
 
   const handleLogin = async (e) => {
@@ -35,15 +45,19 @@ const LoginPage = () => {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      if (!user.emailVerified) {
-        setError("Please verify your email before logging in.");
+      // Force refresh the user to get the latest email verification status
+      await user.reload();
+      const refreshedUser = auth.currentUser;
+
+      if (!refreshedUser.emailVerified) {
+        setError("Please verify your email before logging in. Check your inbox and spam folder for the verification email.");
         // Sign out the user since email is not verified
         await signOut(auth);
         setLoading(false);
         return;
       }
 
-      const uid = user.uid;
+      const uid = refreshedUser.uid;
 
       if (userType === "patient") {
         const userRef = doc(db, "users", uid);
@@ -115,7 +129,17 @@ const LoginPage = () => {
       }
 
     } catch (err) {
-      setError("Invalid email or password.");
+      if (err.code === 'auth/user-not-found') {
+        setError("No account found with this email address.");
+      } else if (err.code === 'auth/wrong-password') {
+        setError("Incorrect password. Please try again.");
+      } else if (err.code === 'auth/invalid-email') {
+        setError("Please enter a valid email address.");
+      } else if (err.code === 'auth/too-many-requests') {
+        setError("Too many failed login attempts. Please try again later.");
+      } else {
+        setError("Invalid email or password.");
+      }
       console.error(err);
     } finally {
       setLoading(false);
