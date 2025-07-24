@@ -54,19 +54,26 @@
   display: inline-block;
   background-color: transparent;
   border: 1px solid #ffffff;
-  color: #ffffff;
+  color: #ffffff !important;
   border-radius: 50%;
   width: 32px;
   height: 32px;
-  line-height: 32px;
+  line-height: 30px;
   text-align: center;
   margin-right: 10px;
   transition: all 0.3s ease;
+  text-decoration: none;
+  font-size: 14px;
 }
 
 .social-icons a:hover {
   background-color: #ffffff;
-  color: #03221e;
+  color: #03221e !important;
+  transform: scale(1.1);
+}
+
+.social-icons a i {
+  color: inherit;
 }
 
 .footer-links {
@@ -95,10 +102,22 @@
 
 .footer-column ul li {
   font-size: 14px;
-  color: #cccccc;
   margin-bottom: 10px;
   cursor: pointer;
   transition: color 0.3s ease;
+}
+
+/* Styling for footer links - more specific selectors */
+.footer-column ul li a {
+  color: #ffffff !important;
+  text-decoration: none;
+  transition: color 0.3s ease;
+  display: block;
+}
+
+.footer-column ul li a:hover {
+  color: #ffc107 !important;
+  text-decoration: none;
 }
 
 .footer-column ul li:hover {
@@ -116,13 +135,13 @@
 }
 
 .footer-bottom a {
-  color: #cccccc;
+  color: #ffffff;
   text-decoration: none;
   transition: color 0.3s ease;
 }
 
 .footer-bottom a:hover {
-  color: #ffffff;
+  color: #ffc107;
 }
 
 /* Responsive */
